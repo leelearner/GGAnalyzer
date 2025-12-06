@@ -1,11 +1,13 @@
 package com.gganalyzer.service;
 
 import com.gganalyzer.model.AppConfig;
+import com.gganalyzer.model.Champion;
 import com.gganalyzer.model.Player;
 import com.gganalyzer.model.PlayerStats;
 import com.gganalyzer.model.Team;
 import com.gganalyzer.model.Stage;
 import com.gganalyzer.repository.AppConfigRepository;
+import com.gganalyzer.repository.ChampionRepository;
 import com.gganalyzer.repository.PlayerRepository;
 import com.gganalyzer.repository.PlayerStatsRepository;
 import com.gganalyzer.repository.TeamRepository;
@@ -47,6 +49,9 @@ public class CsvImportService {
 
     @Autowired
     private StageRepository stageRepository;
+
+    @Autowired
+    private ChampionRepository championRepository;
 
     private static final String CSV_HASH_KEY = "csv_file_hash";
 
@@ -275,6 +280,7 @@ public class CsvImportService {
 
     public List<String> splitMatchesData(String filePath) {
         List<String> leagueStages = new ArrayList<>();
+        List<String> champions = new ArrayList<>();
         Map<String, BufferedWriter> writers = new HashMap<>();
         try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
             String line;
@@ -287,6 +293,15 @@ public class CsvImportService {
                 String[] values = parseCsvLine(line);
                 if (values.length < 1)
                     continue;
+                if (values[10].equals("100") || values[10].equals("200")) {
+                    for (int i = 18; i <= 27; i++) {
+                        String champName = values[i];
+                        if (!champions.contains(champName)) {
+                            champions.add(champName);
+                            saveChampion(champName);
+                        }
+                    }
+                }
 
                 String leagueStage = values[3] + '_' + values[4] + '_' + values[5]; // Assuming league stage info is in
                                                                                     // the first column
@@ -306,5 +321,19 @@ public class CsvImportService {
             e.printStackTrace();
         }
         return leagueStages;
+    }
+
+    @SuppressWarnings("null")
+    @Transactional
+    private void saveChampion(String championName) {
+        if (championName == null || championName.isEmpty())
+            return;
+        Champion champion = championRepository.findByName(championName).orElse(null);
+        if (champion == null) {
+            Champion newChampion = Champion.builder()
+                    .name(championName)
+                    .build();
+            championRepository.save(newChampion);
+        }
     }
 }
