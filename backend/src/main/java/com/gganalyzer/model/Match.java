@@ -41,4 +41,10 @@ public class Match {
 
     private Integer teamAScore;
     private Integer teamBScore;
+
+    private String matchId;
+
+    @ManyToOne
+    @JoinColumn(name = "stage_id")
+    private Stage stage;
 }

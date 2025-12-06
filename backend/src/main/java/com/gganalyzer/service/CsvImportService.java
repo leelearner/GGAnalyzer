@@ -1,34 +1,18 @@
 package com.gganalyzer.service;
 
-import com.gganalyzer.model.AppConfig;
-import com.gganalyzer.model.Player;
-import com.gganalyzer.model.PlayerStats;
-import com.gganalyzer.model.Team;
-import com.gganalyzer.model.Stage;
-import com.gganalyzer.repository.AppConfigRepository;
-import com.gganalyzer.repository.PlayerRepository;
-import com.gganalyzer.repository.PlayerStatsRepository;
-import com.gganalyzer.repository.TeamRepository;
-import com.gganalyzer.repository.StageRepository;
+import com.gganalyzer.model.*;
+import com.gganalyzer.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.nio.Buffer;
+import java.io.*;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.time.LocalDateTime;
+import java.util.*;
+import java.util.concurrent.*;
 
 @Service
 public class CsvImportService {
@@ -48,7 +32,20 @@ public class CsvImportService {
     @Autowired
     private StageRepository stageRepository;
 
+    @Autowired
+    private ChampionRepository championRepository;
+
+    @Autowired
+    private MatchRepository matchRepository;
+
+    @Autowired
+    private LeagueRepository leagueRepository;
+
     private static final String CSV_HASH_KEY = "csv_file_hash";
+
+    private final ExecutorService executor = Executors.newFixedThreadPool(10);
+    private final Object teamLock = new Object();
+    private final Object matchLock = new Object();
 
     @Transactional
     public void importPlayerStats(String filePath) {
@@ -142,15 +139,7 @@ public class CsvImportService {
         String position = data[2];
 
         // Find or create Team
-        Team team = teamRepository.findByName(teamName)
-                .orElseGet(() -> {
-                    Team newTeam = Team.builder()
-                            .name(teamName)
-                            .acronym(teamName.length() > 3 ? teamName.substring(0, 3).toUpperCase()
-                                    : teamName.toUpperCase())
-                            .build();
-                    return teamRepository.save(newTeam);
-                });
+        Team team = findOrCreateTeam(teamName);
 
         // Find or create Player
         Player player = playerRepository.findByHandle(playerName)
@@ -275,18 +264,31 @@ public class CsvImportService {
 
     public List<String> splitMatchesData(String filePath) {
         List<String> leagueStages = new ArrayList<>();
+        List<String> champions = new ArrayList<>();
+        List<String> paths = new ArrayList<>();
         Map<String, BufferedWriter> writers = new HashMap<>();
         try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
             String line;
+            String header = null;
             boolean isHeader = true;
             while ((line = br.readLine()) != null) {
                 if (isHeader) {
+                    header = line;
                     isHeader = false;
                     continue;
                 }
                 String[] values = parseCsvLine(line);
                 if (values.length < 1)
                     continue;
+                if (values[10].equals("100") || values[10].equals("200")) {
+                    for (int i = 18; i <= 27; i++) {
+                        String champName = values[i];
+                        if (!champions.contains(champName)) {
+                            champions.add(champName);
+                            saveChampion(champName);
+                        }
+                    }
+                }
 
                 String leagueStage = values[3] + '_' + values[4] + '_' + values[5]; // Assuming league stage info is in
                                                                                     // the first column
@@ -294,6 +296,9 @@ public class CsvImportService {
                     leagueStages.add(leagueStage);
                     writers.put(leagueStage,
                             new BufferedWriter(new FileWriter("data/matches_" + leagueStage + ".csv")));
+                    writers.get(leagueStage).write(header);
+                    writers.get(leagueStage).newLine();
+                    paths.add("data/matches_" + leagueStage + ".csv");
                 }
                 BufferedWriter writer = writers.get(leagueStage);
                 writer.write(line);
@@ -305,6 +310,165 @@ public class CsvImportService {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return leagueStages;
+        for (String path : paths) {
+            asyncProcessData(path);
+        }
+        return paths;
+    }
+
+    private void asyncProcessData(String filePath) {
+        try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
+            String line;
+            boolean isHeader = true;
+            Map<String, List<String>> matchTeams = new HashMap<>();
+            List<String> teamName = new ArrayList<>();
+            while ((line = br.readLine()) != null) {
+                if (isHeader) {
+                    isHeader = false;
+                    continue;
+                }
+                String[] values = parseCsvLine(line);
+                if (values.length < 29)
+                    continue; // Ensure enough columns
+                if (values[3].equals("LCK") || values[3].equals("LPL")) {
+
+                    // Save teams
+                    if (!teamName.contains(values[15])) {
+                        teamName.add(values[15]);
+                        executor.submit(() -> {
+                            try {
+                                saveTeam(values[15]);
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        });
+                    }
+
+                    // Save matches
+                    if (values[8].equals("1")) {
+                        if (values[10].equals("100")) {
+                            if (!matchTeams.containsKey(values[0])) {
+                                matchTeams.put(values[0], new ArrayList<>());
+                            }
+                            matchTeams.get(values[0]).add(values[15]);
+                        } else if (values[10].equals("200")) {
+                            matchTeams.get(values[0]).add(values[15]);
+                            executor.submit(() -> {
+                                try {
+                                    saveMatch(values, matchTeams.get(values[0]));
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                }
+                            });
+                        }
+                    }
+
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @SuppressWarnings("null")
+    @Transactional
+    private void saveChampion(String championName) {
+        if (championName == null || championName.isEmpty())
+            return;
+        Champion champion = championRepository.findByName(championName).orElse(null);
+        if (champion == null) {
+            Champion newChampion = Champion.builder()
+                    .name(championName)
+                    .build();
+            championRepository.save(newChampion);
+        }
+    }
+
+    @Transactional
+    private void saveMatch(String[] values, List<String> teams) {
+        if (values == null || values.length == 0)
+            return;
+        String teamAName = teams.get(0);
+        String teamBName = teams.get(1);
+
+        // Ensure consistent ordering to allow games match lookup
+        if (teamAName.compareTo(teamBName) > 0) {
+            String temp = teamAName;
+            teamAName = teamBName;
+            teamBName = temp;
+        }
+        Optional<Match> existing = matchRepository.findByMatchId(values[0]);
+        if (existing.isPresent()) {
+            return;
+        }
+        String timeISOString = values[7].trim().replace("/", "-").replace(" ", "T");
+        LocalDateTime startTime = LocalDateTime.parse(timeISOString);
+
+        Match newMatch = Match.builder()
+                .matchId(values[0])
+                .league(leagueRepository.findByName(values[3]).orElse(null))
+                .teamA(teamRepository.findByName(teamAName).orElse(null))
+                .teamB(teamRepository.findByName(teamBName).orElse(null))
+                .startTime(startTime)
+                .format(null)
+                .winner(null)
+                .teamAScore(0)
+                .teamBScore(0)
+                .build();
+        synchronized (matchLock) {
+            matchRepository.save(newMatch);
+        }
+    }
+
+    @Transactional
+    private void saveTeam(String teamName) {
+        if (teamName == null || teamName.isEmpty())
+            return;
+        findOrCreateTeam(teamName);
+    }
+
+    private String generateAcronym(String teamName) {
+        String[] parts = teamName.split("\\s+");
+        if (parts.length > 1) {
+            StringBuilder sb = new StringBuilder();
+            for (String part : parts) {
+                if (!part.isEmpty()) {
+                    sb.append(part.charAt(0));
+                }
+            }
+            String acronym = sb.toString().toUpperCase();
+            if (acronym.length() >= 2)
+                return acronym;
+        }
+
+        return teamName.length() > 3 ? teamName.substring(0, 3).toUpperCase() : teamName.toUpperCase();
+    }
+
+    @SuppressWarnings("null")
+    @Transactional
+    private Team findOrCreateTeam(String teamName) {
+        // Optimization: Check if exists before locking
+        Optional<Team> existing = teamRepository.findByName(teamName);
+        if (existing.isPresent()) {
+            return existing.get();
+        }
+
+        synchronized (teamLock) {
+            return teamRepository.findByName(teamName)
+                    .orElseGet(() -> {
+                        String acronym = generateAcronym(teamName);
+                        int counter = 1;
+                        String originalAcronym = acronym;
+                        while (teamRepository.findByAcronym(acronym).isPresent()) {
+                            acronym = originalAcronym + counter;
+                            counter++;
+                        }
+                        Team newTeam = Team.builder()
+                                .name(teamName)
+                                .acronym(acronym)
+                                .build();
+                        return teamRepository.save(newTeam);
+                    });
+        }
     }
 }
