@@ -3,7 +3,6 @@ package com.gganalyzer.service;
 import com.gganalyzer.model.*;
 import com.gganalyzer.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,6 +12,9 @@ import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock.ReadLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
 
 @Service
 public class CsvImportService {
@@ -46,6 +48,11 @@ public class CsvImportService {
     private final ExecutorService executor = Executors.newFixedThreadPool(10);
     private final Object teamLock = new Object();
     private final Object matchLock = new Object();
+    private final Object stageLock = new Object();
+    // private final ReentrantReadWriteLock stageLock = new
+    // ReentrantReadWriteLock();
+    // private final ReadLock readStageLock = stageLock.readLock();
+    // private final WriteLock writeStageLock = stageLock.writeLock();
 
     @Transactional
     public void importPlayerStats(String filePath) {
@@ -355,7 +362,7 @@ public class CsvImportService {
                             matchTeams.get(values[0]).add(values[15]);
                             executor.submit(() -> {
                                 try {
-                                    saveMatch(values, matchTeams.get(values[0]));
+                                    saveMatch(values, matchTeams.get(values[0]), filePath);
                                 } catch (Exception e) {
                                     e.printStackTrace();
                                 }
@@ -385,11 +392,27 @@ public class CsvImportService {
     }
 
     @Transactional
-    private void saveMatch(String[] values, List<String> teams) {
+    private void saveMatch(String[] values, List<String> teams, String filePath) {
         if (values == null || values.length == 0)
             return;
         String teamAName = teams.get(0);
         String teamBName = teams.get(1);
+        String stage = filePath.substring(filePath.indexOf("matches_") + 8, filePath.indexOf(".csv"));
+        stage = stage.replace(' ', '_').replace('-', '_').toLowerCase();
+        Stage matchStage = stageRepository.findByName(stage).orElse(null);
+        Stage secondRead = null;
+        if (matchStage == null) {
+            // Create new stage
+            synchronized (stageLock) {
+                secondRead = stageRepository.findByName(stage).orElse(null);
+                if (secondRead == null) {
+                    matchStage = Stage.builder()
+                            .name(stage)
+                            .build();
+                    stageRepository.save(matchStage);
+                }
+            }
+        }
 
         // Ensure consistent ordering to allow games match lookup
         if (teamAName.compareTo(teamBName) > 0) {
@@ -414,6 +437,7 @@ public class CsvImportService {
                 .winner(null)
                 .teamAScore(0)
                 .teamBScore(0)
+                .stage(secondRead != null ? secondRead : matchStage)
                 .build();
         synchronized (matchLock) {
             matchRepository.save(newMatch);
