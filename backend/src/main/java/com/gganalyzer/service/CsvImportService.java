@@ -2,6 +2,7 @@ package com.gganalyzer.service;
 
 import com.gganalyzer.model.*;
 import com.gganalyzer.repository.*;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,18 +13,10 @@ import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock.ReadLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
+import java.util.stream.Collectors;
 
 @Service
 public class CsvImportService {
-
-    @Autowired
-    private PlayerRepository playerRepository;
-
-    @Autowired
-    private PlayerStatsRepository playerStatsRepository;
 
     @Autowired
     private TeamRepository teamRepository;
@@ -43,7 +36,8 @@ public class CsvImportService {
     @Autowired
     private LeagueRepository leagueRepository;
 
-    private static final String CSV_HASH_KEY = "csv_file_hash";
+    @Autowired
+    private GameService gameService;
 
     private final ExecutorService executor = Executors.newFixedThreadPool(10);
     private final Object teamLock = new Object();
@@ -56,64 +50,8 @@ public class CsvImportService {
 
     @Transactional
     public void importPlayerStats(String filePath) {
-        File file = new File(filePath);
-        if (!file.exists())
-            return;
-
-        String currentHash = calculateFileHash(file);
-        String storedHash = appConfigRepository.findById(CSV_HASH_KEY)
-                .map(AppConfig::getConfigValue)
-                .orElse("");
-
-        if (currentHash.equals(storedHash)) {
-            System.out.println("CSV file has not changed. Skipping import.");
-            return;
-        }
-
-        System.out.println("CSV file changed. Processing updates...");
-
-        try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
-            String line;
-            boolean isHeader = true;
-            while ((line = br.readLine()) != null) {
-                if (isHeader) {
-                    isHeader = false;
-                    continue;
-                }
-                String[] values = parseCsvLine(line);
-                if (values.length < 29)
-                    continue; // Ensure enough columns
-
-                processRow(values);
-            }
-
-            // Update stored hash after successful processing
-            AppConfig config = new AppConfig(CSV_HASH_KEY, currentHash);
-            appConfigRepository.save(config);
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private String calculateFileHash(File file) {
-        try (FileInputStream fis = new FileInputStream(file)) {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] byteArray = new byte[1024];
-            int bytesCount;
-            while ((bytesCount = fis.read(byteArray)) != -1) {
-                digest.update(byteArray, 0, bytesCount);
-            }
-            byte[] bytes = digest.digest();
-            StringBuilder sb = new StringBuilder();
-            for (byte b : bytes) {
-                sb.append(String.format("%02x", b));
-            }
-            return sb.toString();
-        } catch (IOException | NoSuchAlgorithmException e) {
-            e.printStackTrace();
-            return "";
-        }
+        // Deprecated: Player stats are now calculated from match data
+        System.out.println("Skipping direct Player Stats CSV import. Stats will be calculated from match data.");
     }
 
     private String[] parseCsvLine(String line) {
@@ -135,150 +73,37 @@ public class CsvImportService {
         return tokens.toArray(new String[0]);
     }
 
-    private void processRow(String[] data) {
-        // Columns:
-        // "Player","Team","Pos","GP","W%","CTR%","K","D","A","KDA","KP","KS%","DTH%","FB%","GD10","XPD10","CSD10","CSPM","CS%P15","DPM","DMG%","D%P15","TDPG","EGPM","GOLD%","STL","WPM","CWPM","WCPM"
-        // Indices: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25
-        // 26 27 28
-
-        String playerName = data[0];
-        String teamName = data[1];
-        String position = data[2];
-
-        // Find or create Team
-        Team team = findOrCreateTeam(teamName);
-
-        // Find or create Player
-        Player player = playerRepository.findByHandle(playerName)
-                .orElseGet(() -> {
-                    Player newPlayer = Player.builder()
-                            .handle(playerName)
-                            .role(position)
-                            .team(team)
-                            .build();
-                    return playerRepository.save(newPlayer);
-                });
-
-        // Update player team/role if changed
-        if (player.getTeam() == null || !player.getTeam().getId().equals(team.getId())) {
-            player.setTeam(team);
-        }
-        player.setRole(position);
-        playerRepository.save(player);
-
-        // Create or Update PlayerStats
-        PlayerStats stats = playerStatsRepository.findByPlayer(player)
-                .orElse(new PlayerStats());
-
-        // Check if update is needed (simple check on games played and last updated, or
-        // check all fields)
-        // For "only differences", we should check if values changed.
-        // Comparing a few key metrics or all. Let's compare all relevant ones to be
-        // safe.
-
-        int newGamesPlayed = parseInt(data[3]);
-        double newWinRate = parsePercentage(data[4]);
-        double newKda = parseDouble(data[9]);
-        double newDpm = parseDouble(data[19]);
-
-        boolean isNew = stats.getId() == null;
-        boolean changed = isNew ||
-                stats.getGamesPlayed() != newGamesPlayed ||
-                Math.abs(stats.getWinRate() - newWinRate) > 0.001 ||
-                Math.abs(stats.getKda() - newKda) > 0.001 ||
-                Math.abs(stats.getDpm() - newDpm) > 0.001;
-
-        // TODO: Set stage for player stats according to the csv file name
-        Stage defaultStage = stageRepository.findAll().get(0);
-
-        // If not changed based on key metrics, we might skip.
-        // But to be fully correct per user request "only differences", we should
-        // probably update if ANY field changed.
-        // Given the number of fields, let's just update if key metrics change or if
-        // it's new.
-        // Or better, let's just set the values. Hibernate will only issue an UPDATE if
-        // the state actually changed.
-        // However, setting LastUpdated will force an update.
-        // So we should only set LastUpdated if we actually change something.
-
-        if (!changed) {
-            // Check a few more to be sure? Or rely on Hibernate dirty checking?
-            // Hibernate dirty checking works if we load the entity and modify it.
-            // But we need to avoid setting LastUpdated if nothing else changed.
-            // Let's set all fields, and check if Hibernate detects changes.
-            // But we can't easily know if Hibernate detected changes before saving.
-            // So let's do the manual check for "changed" flag properly.
-
-            // Actually, simpler approach: Set all fields. If they are same, Hibernate won't
-            // update.
-            // EXCEPT LastUpdated. So we only set LastUpdated if we detect a change.
-        }
-
-        stats.setPlayer(player);
-        stats.setGamesPlayed(newGamesPlayed);
-        stats.setWinRate(newWinRate);
-        stats.setCounterPickRate(parsePercentage(data[5]));
-        stats.setKills(parseInt(data[6]));
-        stats.setDeaths(parseInt(data[7]));
-        stats.setAssists(parseInt(data[8]));
-        stats.setKda(newKda);
-        stats.setKillParticipation(parsePercentage(data[10]));
-        stats.setKillShare(parsePercentage(data[11]));
-        stats.setDeathShare(parsePercentage(data[12]));
-        stats.setFirstBloodRate(parsePercentage(data[13]));
-        stats.setGoldDiff10(parseInt(data[14]));
-        stats.setXpDiff10(parseInt(data[15]));
-        stats.setCsDiff10(parseDouble(data[16]));
-        stats.setCspm(parseDouble(data[17]));
-        stats.setCsSharePost15(parsePercentage(data[18]));
-        stats.setDpm(newDpm);
-        stats.setDamageShare(parsePercentage(data[20]));
-        stats.setDamageSharePost15(parsePercentage(data[21]));
-        stats.setTotalDamagePerGame(parseInt(data[22]));
-        stats.setEarnedGoldPerMinute(parseDouble(data[23]));
-        stats.setGoldShare(parsePercentage(data[24]));
-        stats.setSteals(parseInt(data[25]));
-        stats.setWardsPerMinute(parseDouble(data[26]));
-        stats.setControlWardsPerMinute(parseDouble(data[27]));
-        stats.setWardsClearedPerMinute(parseDouble(data[28]));
-        stats.setStage(defaultStage);
-
-        // Save. Hibernate will only execute UPDATE if fields changed.
-        // @PreUpdate and @PrePersist in PlayerStats will handle lastUpdated.
-        playerStatsRepository.save(stats);
-    }
-
-    private int parseInt(String value) {
-        try {
-            return Integer.parseInt(value.trim());
-        } catch (NumberFormatException e) {
-            return 0;
-        }
-    }
-
-    private double parseDouble(String value) {
-        try {
-            return Double.parseDouble(value.trim());
-        } catch (NumberFormatException e) {
-            return 0.0;
-        }
-    }
-
-    private double parsePercentage(String value) {
-        String clean = value.replace("%", "").trim();
-        return parseDouble(clean);
-    }
-
     public List<String> splitMatchesData(String filePath) {
+        try {
+            String currentHash = calculateFileHash(filePath);
+            String configKey = "hash_" + new File(filePath).getName();
+            Optional<AppConfig> configOpt = appConfigRepository.findById(configKey);
+            if (configOpt.isPresent() && configOpt.get().getConfigValue().equals(currentHash)) {
+                System.out.println("File " + filePath + " has not changed. Skipping import.");
+                return new ArrayList<>();
+            }
+            AppConfig config = configOpt.orElse(AppConfig.builder().configKey(configKey).build());
+            config.setConfigValue(currentHash);
+            appConfigRepository.save(config);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
         List<String> leagueStages = new ArrayList<>();
         List<String> champions = new ArrayList<>();
         List<String> paths = new ArrayList<>();
         Map<String, BufferedWriter> writers = new HashMap<>();
         try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
+            long totalLines = countLines(filePath);
+            long currentLine = 0;
             String line;
             String header = null;
             boolean isHeader = true;
             while ((line = br.readLine()) != null) {
+                currentLine++;
+                if (currentLine % 1000 == 0 || currentLine == totalLines) {
+                    printProgressBar(currentLine, totalLines, "Splitting Matches Data:");
+                }
                 if (isHeader) {
                     header = line;
                     isHeader = false;
@@ -317,62 +142,113 @@ public class CsvImportService {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        List<Future<?>> futures = new ArrayList<>();
         for (String path : paths) {
-            asyncProcessData(path);
+            futures.add(executor.submit(() -> processMatchData(path)));
         }
+
+        // Wait for all tasks to complete
+        for (Future<?> future : futures) {
+            try {
+                future.get();
+            } catch (InterruptedException | ExecutionException e) {
+                e.printStackTrace();
+            }
+        }
+
         return paths;
     }
 
-    private void asyncProcessData(String filePath) {
+    public void processMatchData(String filePath) {
+        String fileName = new File(filePath).getName();
+
+        try {
+            String currentHash = calculateFileHash(filePath);
+            String configKey = "hash_" + fileName;
+            Optional<AppConfig> configOpt = appConfigRepository.findById(configKey);
+            if (configOpt.isPresent() && configOpt.get().getConfigValue().equals(currentHash)) {
+                System.out.println("File " + fileName + " has not changed. Skipping import.");
+                return;
+            }
+            AppConfig config = configOpt.orElse(AppConfig.builder().configKey(configKey).build());
+            config.setConfigValue(currentHash);
+            appConfigRepository.save(config);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
         try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
+            long totalLines = countLines(filePath);
+            long currentLine = 0;
             String line;
             boolean isHeader = true;
-            Map<String, List<String>> matchTeams = new HashMap<>();
-            List<String> teamName = new ArrayList<>();
+            Map<String, List<String[]>> pendingGames = new HashMap<>();
+
             while ((line = br.readLine()) != null) {
+                currentLine++;
+                if (currentLine % 100 == 0 || currentLine == totalLines) {
+                    printProgressBar(currentLine, totalLines, fileName + ":");
+                }
                 if (isHeader) {
                     isHeader = false;
                     continue;
                 }
                 String[] values = parseCsvLine(line);
-                if (values.length < 29)
+                if (values.length < 100)
                     continue; // Ensure enough columns
                 if (values[3].equals("LCK") || values[3].equals("LPL")) {
 
                     // Save teams
-                    if (!teamName.contains(values[15])) {
-                        teamName.add(values[15]);
-                        executor.submit(() -> {
-                            try {
-                                saveTeam(values[15]);
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                            }
-                        });
+                    try {
+                        saveTeam(values[15]);
+                    } catch (Exception e) {
+                        e.printStackTrace();
                     }
 
-                    // Save matches
-                    if (values[8].equals("1")) {
-                        if (values[10].equals("100")) {
-                            if (!matchTeams.containsKey(values[0])) {
-                                matchTeams.put(values[0], new ArrayList<>());
-                            }
-                            matchTeams.get(values[0]).add(values[15]);
-                        } else if (values[10].equals("200")) {
-                            matchTeams.get(values[0]).add(values[15]);
-                            executor.submit(() -> {
-                                try {
-                                    saveMatch(values, matchTeams.get(values[0]), filePath);
-                                } catch (Exception e) {
-                                    e.printStackTrace();
-                                }
-                            });
-                        }
-                    }
+                    String gameId = values[0];
+                    pendingGames.computeIfAbsent(gameId, k -> new ArrayList<>()).add(values);
 
+                    List<String[]> rows = pendingGames.get(gameId);
+                    boolean hasTeam100 = rows.stream().anyMatch(r -> r[10].equals("100"));
+                    boolean hasTeam200 = rows.stream().anyMatch(r -> r[10].equals("200"));
+
+                    // Check if we have all rows (12 rows: 10 players + 2 teams)
+                    if (hasTeam100 && hasTeam200 && rows.size() >= 12) {
+                        processGameData(rows, filePath);
+                        pendingGames.remove(gameId);
+                    }
+                }
+            }
+            // Process remaining games if any
+            for (List<String[]> rows : pendingGames.values()) {
+                boolean hasTeam100 = rows.stream().anyMatch(r -> r[10].equals("100"));
+                boolean hasTeam200 = rows.stream().anyMatch(r -> r[10].equals("200"));
+                if (hasTeam100 && hasTeam200) {
+                    processGameData(rows, filePath);
                 }
             }
         } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void processGameData(List<String[]> rows, String filePath) {
+        String[] team100 = rows.stream().filter(r -> r[10].equals("100")).findFirst().orElse(null);
+        String[] team200 = rows.stream().filter(r -> r[10].equals("200")).findFirst().orElse(null);
+
+        if (team100 == null || team200 == null)
+            return;
+
+        List<String> teams = Arrays.asList(team100[15], team200[15]);
+        try {
+            saveMatch(team100, teams, filePath);
+
+            List<String[]> playerRows = rows.stream()
+                    .filter(r -> !r[10].equals("100") && !r[10].equals("200"))
+                    .collect(Collectors.toList());
+
+            gameService.createGameWithStats(team100, team200, playerRows);
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
@@ -420,28 +296,52 @@ public class CsvImportService {
             teamAName = teamBName;
             teamBName = temp;
         }
-        Optional<Match> existing = matchRepository.findByMatchId(values[0]);
+
+        String date = values[7].split(" ")[0].trim();
+        Team teamA = findOrCreateTeam(teamAName);
+        Team teamB = findOrCreateTeam(teamBName);
+
+        Optional<Match> existing = matchRepository.findByDateAndTeamAAndTeamB(date, teamA, teamB);
         if (existing.isPresent()) {
             return;
         }
         String timeISOString = values[7].trim().replace("/", "-").replace(" ", "T");
         LocalDateTime startTime = LocalDateTime.parse(timeISOString);
 
+        League league = findOrCreateLeague(values[3]);
+
         Match newMatch = Match.builder()
                 .matchId(values[0])
-                .league(leagueRepository.findByName(values[3]).orElse(null))
-                .teamA(teamRepository.findByName(teamAName).orElse(null))
-                .teamB(teamRepository.findByName(teamBName).orElse(null))
+                .league(league)
+                .teamA(teamA)
+                .teamB(teamB)
                 .startTime(startTime)
                 .format(null)
                 .winner(null)
                 .teamAScore(0)
                 .teamBScore(0)
                 .stage(secondRead != null ? secondRead : matchStage)
+                .date(date)
                 .build();
         synchronized (matchLock) {
+            // Double check inside lock
+            if (matchRepository.findByDateAndTeamAAndTeamB(date, teamA, teamB).isPresent()) {
+                return;
+            }
             matchRepository.save(newMatch);
         }
+    }
+
+    @Transactional
+    private League findOrCreateLeague(String leagueName) {
+        return leagueRepository.findByName(leagueName)
+                .orElseGet(() -> {
+                    League newLeague = League.builder()
+                            .name(leagueName)
+                            .region("Unknown") // Default region
+                            .build();
+                    return leagueRepository.save(newLeague);
+                });
     }
 
     @Transactional
@@ -494,5 +394,49 @@ public class CsvImportService {
                         return teamRepository.save(newTeam);
                     });
         }
+    }
+
+    private long countLines(String filePath) {
+        try (java.util.stream.Stream<String> stream = java.nio.file.Files.lines(java.nio.file.Paths.get(filePath))) {
+            return stream.count();
+        } catch (IOException e) {
+            return 0;
+        }
+    }
+
+    private void printProgressBar(long current, long total, String message) {
+        if (total == 0)
+            return;
+        int percent = (int) (current * 100 / total);
+        StringBuilder bar = new StringBuilder("[");
+        for (int i = 0; i < 50; i++) {
+            if (i < (percent / 2)) {
+                bar.append("=");
+            } else {
+                bar.append(" ");
+            }
+        }
+        bar.append("] " + percent + "% (" + current + "/" + total + ")");
+        System.out.print("\r" + message + " " + bar.toString());
+        if (current == total) {
+            System.out.println();
+        }
+    }
+
+    private String calculateFileHash(String filePath) throws IOException, NoSuchAlgorithmException {
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        try (InputStream fis = new FileInputStream(filePath)) {
+            byte[] byteArray = new byte[1024];
+            int bytesCount = 0;
+            while ((bytesCount = fis.read(byteArray)) != -1) {
+                digest.update(byteArray, 0, bytesCount);
+            }
+        }
+        byte[] bytes = digest.digest();
+        StringBuilder sb = new StringBuilder();
+        for (byte aByte : bytes) {
+            sb.append(Integer.toString((aByte & 0xff) + 0x100, 16).substring(1));
+        }
+        return sb.toString();
     }
 }

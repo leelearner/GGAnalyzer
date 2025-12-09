@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import axios from 'axios'
+import { STAT_DEFINITIONS } from '../constants/definitions'
 
 export default function Stats() {
     const [tab, setTab] = useState('players'); // players, teams, champions
@@ -77,36 +78,36 @@ function PlayerStats({ stage }) {
 
     return (
         <div className="bg-gg-card rounded-lg overflow-hidden flex flex-col">
-            <div className="overflow-auto max-h-[1000px]">
+            <div className="overflow-auto max-h-[500px]">
                 <table className="w-full text-left text-sm whitespace-nowrap">
                     <thead className="bg-gray-800 text-gray-400 uppercase sticky top-0 z-10">
                         <tr>
-                            <th className="p-3 bg-gray-800">Team</th>
-                            <th className="p-3 bg-gray-800">Player</th>
-                            <th className="p-3 bg-gray-800">Role</th>
-                            <th className="p-3 bg-gray-800">GP</th>
-                            <th className="p-3 bg-gray-800">W%</th>
-                            <th className="p-3 bg-gray-800">KDA</th>
-                            <th className="p-3 bg-gray-800">K</th>
-                            <th className="p-3 bg-gray-800">D</th>
-                            <th className="p-3 bg-gray-800">A</th>
-                            <th className="p-3 bg-gray-800">KP%</th>
-                            <th className="p-3 bg-gray-800">KS%</th>
-                            <th className="p-3 bg-gray-800">DTH%</th>
-                            <th className="p-3 bg-gray-800">FB%</th>
-                            <th className="p-3 bg-gray-800">GD10</th>
-                            <th className="p-3 bg-gray-800">XPD10</th>
-                            <th className="p-3 bg-gray-800">CSD10</th>
-                            <th className="p-3 bg-gray-800">CSPM</th>
-                            <th className="p-3 bg-gray-800">CS%P15</th>
-                            <th className="p-3 bg-gray-800">DPM</th>
-                            <th className="p-3 bg-gray-800">DMG%</th>
-                            <th className="p-3 bg-gray-800">D%P15</th>
-                            <th className="p-3 bg-gray-800">EGPM</th>
-                            <th className="p-3 bg-gray-800">GOLD%</th>
-                            <th className="p-3 bg-gray-800">WPM</th>
-                            <th className="p-3 bg-gray-800">CWPM</th>
-                            <th className="p-3 bg-gray-800">WCPM</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["Team"]}>Team</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["Player"]}>Player</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["Pos"]}>Role</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["GP"]}>GP</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["W%"]}>W%</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["KDA"]}>KDA</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["K"]}>K</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["D"]}>D</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["A"]}>A</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["KP%"]}>KP%</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["KS%"]}>KS%</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["DTH%"]}>DTH%</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["FB%"]}>FB%</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["GD10"]}>GD10</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["XPD10"]}>XPD10</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["CSD10"]}>CSD10</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["CSPM"]}>CSPM</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["CS%P15"]}>CS%P15</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["DPM"]}>DPM</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["DMG%"]}>DMG%</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["D%P15"]}>D%P15</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["EGPM"]}>EGPM</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["GOLD%"]}>GOLD%</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["WPM"]}>WPM</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["CWPM"]}>CWPM</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["WCPM"]}>WCPM</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-700">
@@ -192,12 +193,12 @@ function TeamStats({ stage }) {
             <table className="w-full text-left text-sm">
                 <thead className="bg-gray-800 text-gray-400 uppercase">
                     <tr>
-                        <th className="p-3">Team</th>
-                        <th className="p-3">Games</th>
-                        <th className="p-3">Win Rate</th>
-                        <th className="p-3">KDA</th>
-                        <th className="p-3">Avg Duration</th>
-                        <th className="p-3">Gold/M</th>
+                        <th className="p-3" title={STAT_DEFINITIONS["Team"]}>Team</th>
+                        <th className="p-3" title={STAT_DEFINITIONS["GP"]}>Games</th>
+                        <th className="p-3" title={STAT_DEFINITIONS["W%"]}>Win Rate</th>
+                        <th className="p-3" title={STAT_DEFINITIONS["KDA"]}>KDA</th>
+                        <th className="p-3" title={STAT_DEFINITIONS["AGT"]}>Avg Duration</th>
+                        <th className="p-3" title={STAT_DEFINITIONS["GPM"]}>Gold/M</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-700">
@@ -236,12 +237,12 @@ function ChampionStats({ stage }) {
             <table className="w-full text-left text-sm">
                 <thead className="bg-gray-800 text-gray-400 uppercase">
                     <tr>
-                        <th className="p-3">Champion</th>
-                        <th className="p-3">Games</th>
-                        <th className="p-3">Win Rate</th>
-                        <th className="p-3">Pick Rate</th>
-                        <th className="p-3">Ban Rate</th>
-                        <th className="p-3">KDA</th>
+                        <th className="p-3" title={STAT_DEFINITIONS["Champion"]}>Champion</th>
+                        <th className="p-3" title={STAT_DEFINITIONS["GP"]}>Games</th>
+                        <th className="p-3" title={STAT_DEFINITIONS["W%"]}>Win Rate</th>
+                        <th className="p-3" title={STAT_DEFINITIONS["P%"]}>Pick Rate</th>
+                        <th className="p-3" title={STAT_DEFINITIONS["B%"]}>Ban Rate</th>
+                        <th className="p-3" title={STAT_DEFINITIONS["KDA"]}>KDA</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-700">
