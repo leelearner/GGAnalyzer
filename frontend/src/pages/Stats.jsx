@@ -7,11 +7,15 @@ export default function Stats() {
     const [tab, setTab] = useState('players'); // players, teams, champions
     const [stage, setStage] = useState('lck_2025_rounds_1_2');
 
-    const stages = [
-        'lck_2025_rounds_1_2',
-        'LCK 2024 Summer',
-        'LCK 2024 Spring'
-    ];
+    const { data: stagesData } = useQuery({
+        queryKey: ['stages'],
+        queryFn: async () => {
+            const response = await axios.get('http://localhost:8080/api/stages')
+            return response.data
+        }
+    })
+
+    const stages = stagesData ? stagesData.map(s => s.name).sort() : [];
 
     return (
         <div className="flex">
@@ -25,7 +29,10 @@ export default function Stats() {
                             onClick={() => setStage(s)}
                             className={`block w-full text-left px-4 py-2 rounded transition-colors ${stage === s ? 'bg-gg-blue text-white' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
                         >
-                            {s === 'lck_2025_rounds_1_2' && 'LCK 2025 Rounds 1-2'}
+                            {s.replace(/_/g, ' ')
+                                .replace(/^(\w+)/, c => c.toUpperCase())
+                                .replace(/\b(\w)/g, c => c.toUpperCase())
+                                .replace(/(\d)\s+(\d)/g, '$1-$2')}
                         </button>
                     ))}
                 </div>
@@ -78,7 +85,7 @@ function PlayerStats({ stage }) {
 
     return (
         <div className="bg-gg-card rounded-lg overflow-hidden flex flex-col">
-            <div className="overflow-auto max-h-[500px]">
+            <div className="overflow-auto max-h-[600px]">
                 <table className="w-full text-left text-sm whitespace-nowrap">
                     <thead className="bg-gray-800 text-gray-400 uppercase sticky top-0 z-10">
                         <tr>
@@ -143,28 +150,28 @@ function PlayerStats({ stage }) {
                                 </td>
                                 <td className="p-3">{p.role}</td>
                                 <td className="p-3">{p.gamesPlayed}</td>
-                                <td className="p-3">{p.winRate}%</td>
-                                <td className="p-3 font-bold text-gg-blue">{p.kda}</td>
+                                <td className="p-3">{p.winRate.toFixed(0)}%</td>
+                                <td className="p-3 font-bold text-gg-blue">{p.kda.toFixed(1)}</td>
                                 <td className="p-3">{p.kills}</td>
                                 <td className="p-3">{p.deaths}</td>
                                 <td className="p-3">{p.assists}</td>
-                                <td className="p-3">{p.killParticipation}%</td>
-                                <td className="p-3">{p.killShare}%</td>
-                                <td className="p-3">{p.deathShare}%</td>
-                                <td className="p-3">{p.firstBloodRate}%</td>
-                                <td className="p-3">{p.goldDiff10}</td>
-                                <td className="p-3">{p.xpDiff10}</td>
-                                <td className="p-3">{p.csDiff10}</td>
-                                <td className="p-3">{p.cspm}</td>
-                                <td className="p-3">{p.csSharePost15}%</td>
-                                <td className="p-3">{p.dpm}</td>
-                                <td className="p-3">{p.damageShare}%</td>
-                                <td className="p-3">{p.damageSharePost15}%</td>
-                                <td className="p-3">{p.earnedGoldPerMinute}</td>
-                                <td className="p-3">{p.goldShare}%</td>
-                                <td className="p-3">{p.wardsPerMinute}</td>
-                                <td className="p-3">{p.controlWardsPerMinute}</td>
-                                <td className="p-3">{p.wardsClearedPerMinute}</td>
+                                <td className="p-3">{p.killParticipation.toFixed(1)}%</td>
+                                <td className="p-3">{p.killShare.toFixed(1)}%</td>
+                                <td className="p-3">{p.deathShare.toFixed(1)}%</td>
+                                <td className="p-3">{p.firstBloodRate.toFixed(0)}%</td>
+                                <td className="p-3">{p.goldDiff10.toFixed(0)}</td>
+                                <td className="p-3">{p.xpDiff10.toFixed(0)}</td>
+                                <td className="p-3">{p.csDiff10.toFixed(1)}</td>
+                                <td className="p-3">{p.cspm.toFixed(1)}</td>
+                                <td className="p-3">{p.csSharePost15.toFixed(1)}%</td>
+                                <td className="p-3">{p.dpm.toFixed(0)}</td>
+                                <td className="p-3">{p.damageShare.toFixed(0)}%</td>
+                                <td className="p-3">{p.damageSharePost15.toFixed(0)}%</td>
+                                <td className="p-3">{p.earnedGoldPerMinute.toFixed(0)}</td>
+                                <td className="p-3">{p.goldShare.toFixed(1)}%</td>
+                                <td className="p-3">{p.wardsPerMinute.toFixed(2)}</td>
+                                <td className="p-3">{p.controlWardsPerMinute.toFixed(2)}</td>
+                                <td className="p-3">{p.wardsClearedPerMinute.toFixed(2)}</td>
                             </tr>
                         ))}
                     </tbody>
