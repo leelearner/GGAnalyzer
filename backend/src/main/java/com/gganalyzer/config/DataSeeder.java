@@ -30,8 +30,8 @@ public class DataSeeder implements CommandLineRunner {
         if (leagueRepository.count() == 0) {
             seedData();
         }
-        // csvImportService.splitMatchesData("data/2025_LoL_esports_match_data_from_OraclesElixir.csv");
-        csvImportService.processMatchData("data/matches_LCK_2025_Rounds 1-2.csv");
+        csvImportService.splitMatchesData("data/2025_LoL_esports_match_data_from_OraclesElixir.csv");
+        // csvImportService.processMatchData("data/matches_LCK_2025_Rounds 1-2.csv");
         System.out.println("Import completed. Calculating player stats...");
 
         statsService.calculatePlayerStats();

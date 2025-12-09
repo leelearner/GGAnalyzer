@@ -26,29 +26,29 @@ public class TeamGameStats {
     private Team team;
 
     private String side;
-    private boolean win;
+    private Boolean win;
 
-    private int kills;
-    private int deaths;
-    private int assists;
+    private Integer kills;
+    private Integer deaths;
+    private Integer assists;
 
-    private int totalGold;
-    private int earnedGold;
+    private Integer totalGold;
+    private Integer earnedGold;
 
-    private int towers;
-    private int inhibitors;
-    private int barons;
-    private int dragons;
-    private int elders;
-    private int heralds;
-    private int voidGrubs;
+    private Integer towers;
+    private Integer inhibitors;
+    private Integer barons;
+    private Integer dragons;
+    private Integer elders;
+    private Integer heralds;
+    private Integer voidGrubs;
 
-    private boolean firstBlood;
-    private boolean firstTower;
-    private boolean firstDragon;
-    private boolean firstBaron;
-    private boolean firstHerald;
-    private boolean firstToThreeTowers;
+    private Boolean firstBlood;
+    private Boolean firstTower;
+    private Boolean firstDragon;
+    private Boolean firstBaron;
+    private Boolean firstHerald;
+    private Boolean firstToThreeTowers;
 
     private String ban1;
     private String ban2;

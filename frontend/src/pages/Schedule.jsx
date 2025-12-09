@@ -15,10 +15,16 @@ export default function Schedule() {
         }
     })
 
-    // Extract unique stages
-    const stages = matches
-        ? [...new Set(matches.map(m => m.stage?.name).filter(Boolean))].sort()
-        : [];
+    // Fetch stages
+    const { data: stagesData } = useQuery({
+        queryKey: ['stages'],
+        queryFn: async () => {
+            const response = await axios.get('http://localhost:8080/api/stages')
+            return response.data
+        }
+    })
+
+    const stages = stagesData ? stagesData.map(s => s.name).sort() : [];
 
     // Set default stage if not set
     useEffect(() => {
