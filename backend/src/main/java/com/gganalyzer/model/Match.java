@@ -1,6 +1,7 @@
 package com.gganalyzer.model;
 
 import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -47,4 +48,10 @@ public class Match {
     @ManyToOne
     @JoinColumn(name = "stage_id")
     private Stage stage;
+
+    private String date; // YYYY-MM-DD
+
+    @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
+    @JsonIgnoreProperties("match")
+    private java.util.List<Game> games;
 }

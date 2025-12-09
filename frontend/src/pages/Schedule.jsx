@@ -16,8 +16,8 @@ export default function Schedule() {
     })
 
     // Extract unique stages
-    const stages = matches 
-        ? [...new Set(matches.map(m => m.stage?.name).filter(Boolean))].sort() 
+    const stages = matches
+        ? [...new Set(matches.map(m => m.stage?.name).filter(Boolean))].sort()
         : [];
 
     // Set default stage if not set
@@ -28,8 +28,8 @@ export default function Schedule() {
     }, [stages, selectedStage]);
 
     // Filter matches by stage
-    const filteredMatches = matches 
-        ? matches.filter(m => m.stage?.name === selectedStage) 
+    const filteredMatches = matches
+        ? matches.filter(m => m.stage?.name === selectedStage)
         : [];
 
     // Group by date
@@ -71,7 +71,10 @@ export default function Schedule() {
                             onClick={() => setSelectedStage(s)}
                             className={`block w-full text-left px-4 py-2 rounded transition-colors ${selectedStage === s ? 'bg-gg-blue text-white' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
                         >
-                            {s.replace(/_/g, ' ')}
+                            {s.replace(/_/g, ' ')
+                                .replace(/^(\w+)/, c => c.toUpperCase())
+                                .replace(/\b(\w)/g, c => c.toUpperCase())
+                                .replace(/(\d)\s+(\d)/, '$1-$2')}
                         </button>
                     ))}
                     {stages.length === 0 && <p className="text-gray-500 px-4">No stages found.</p>}

@@ -14,4 +14,6 @@ public interface PlayerStatsRepository extends JpaRepository<PlayerStats, Long> 
     Optional<PlayerStats> findByPlayer(Player player);
 
     List<PlayerStats> findByStage(Stage stage);
+
+    Optional<PlayerStats> findByPlayerAndStage(Player player, Stage stage);
 }

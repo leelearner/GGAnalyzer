@@ -1,10 +1,13 @@
 package com.gganalyzer.model;
 
 import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 @Entity
 @Table(name = "games")
@@ -20,6 +23,9 @@ public class Game {
 
     @ManyToOne
     @JoinColumn(name = "match_id")
+    @JsonIgnoreProperties("games")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private Match match;
 
     private Integer gameNumber; // 1, 2, 3...
@@ -31,4 +37,6 @@ public class Game {
     private Team winnerTeam;
 
     private String patchVersion;
+
+    private String gameId;
 }
