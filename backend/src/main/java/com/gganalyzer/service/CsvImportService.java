@@ -1,6 +1,11 @@
 package com.gganalyzer.service;
 
-import com.gganalyzer.model.*;
+import com.gganalyzer.model.AppConfig;
+import com.gganalyzer.model.Champion;
+import com.gganalyzer.model.League;
+import com.gganalyzer.model.Match;
+import com.gganalyzer.model.Stage;
+import com.gganalyzer.model.Team;
 import com.gganalyzer.repository.*;
 
 import org.springframework.beans.factory.annotation.Autowired;

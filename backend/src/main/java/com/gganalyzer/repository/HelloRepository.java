@@ -1,8 +1,11 @@
 package com.gganalyzer.repository;
 
 import java.util.List;
-import com.gganalyzer.model.Hello;
+
 import org.springframework.stereotype.Repository;
+
+import com.gganalyzer.model.Hello;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 
 @Repository

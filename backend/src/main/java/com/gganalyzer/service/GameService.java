@@ -11,14 +11,13 @@ import com.gganalyzer.repository.PlayerRepository;
 import com.gganalyzer.repository.ChampionRepository;
 import com.gganalyzer.repository.TeamRepository;
 import com.gganalyzer.repository.TeamGameStatsRepository;
-
+import com.gganalyzer.model.Champion;
 import com.gganalyzer.model.Game;
 import com.gganalyzer.model.Match;
+import com.gganalyzer.model.Player;
+import com.gganalyzer.model.PlayerGameStats;
 import com.gganalyzer.model.Team;
 import com.gganalyzer.model.TeamGameStats;
-import com.gganalyzer.model.Player;
-import com.gganalyzer.model.Champion;
-import com.gganalyzer.model.PlayerGameStats;
 
 @Service
 public class GameService {

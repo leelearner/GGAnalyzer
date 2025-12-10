@@ -1,18 +1,24 @@
-package com.gganalyzer.dto;
+package com.gganalyzer.model;
 
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
-import com.gganalyzer.model.Team;
-import com.gganalyzer.model.Stage;
-import com.gganalyzer.model.League;
-
-@Data
+@Entity
 @Builder
-public class TeamStatsDTO {
-    private Team team;
-    private Stage stage;
-    private League league;
+@Table(name = "team_stats", uniqueConstraints = {
+        @UniqueConstraint(columnNames = { "team_id", "stage_id" })
+})
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class TeamStats {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
     private Integer gamesPlayed;
     private Integer wins;
     private Integer losses;
@@ -40,4 +46,16 @@ public class TeamStatsDTO {
     private Double wardsPerMinute;
     private Double controlWardsPerMinute;
     private Double wardsClearedPerMinute;
+
+    @ManyToOne
+    @JoinColumn(name = "team_id")
+    private Team team;
+
+    @ManyToOne
+    @JoinColumn(name = "stage_id")
+    private Stage stage;
+
+    @ManyToOne
+    @JoinColumn(name = "league_id")
+    private League league;
 }

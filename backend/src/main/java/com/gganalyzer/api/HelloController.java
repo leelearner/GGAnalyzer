@@ -1,13 +1,14 @@
 package com.gganalyzer.api;
 
 import java.util.List;
-import com.gganalyzer.model.Hello;
+
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.gganalyzer.model.Hello;
 import com.gganalyzer.service.HelloService;
 
 @RestController

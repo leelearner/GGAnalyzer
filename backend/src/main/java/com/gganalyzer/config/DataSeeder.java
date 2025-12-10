@@ -36,6 +36,10 @@ public class DataSeeder implements CommandLineRunner {
 
         statsService.calculatePlayerStats();
         System.out.println("Player stats calculation completed.");
+
+        System.out.println("Calculating team stats...");
+        statsService.calculateTeamStats();
+        System.out.println("Team stats calculation completed.");
     }
 
     private void seedData() {

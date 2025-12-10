@@ -1,8 +1,9 @@
 package com.gganalyzer.repository;
 
 import com.gganalyzer.model.Player;
-import com.gganalyzer.model.Stage;
 import com.gganalyzer.model.PlayerStats;
+import com.gganalyzer.model.Stage;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

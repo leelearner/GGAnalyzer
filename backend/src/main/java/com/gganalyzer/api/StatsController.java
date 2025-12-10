@@ -21,8 +21,11 @@ public class StatsController {
     }
 
     @GetMapping("/teams")
-    public List<TeamStatsDTO> getTeamStats() {
-        return statsService.getTeamStats();
+    public List<TeamStatsDTO> getTeamStatsByStage(@RequestParam(required = false) String stage) {
+        if (stage == null || stage.isEmpty()) {
+            return statsService.getTeamStats();
+        }
+        return statsService.getTeamStatsByStage(stage);
     }
 
     @GetMapping("/champions")

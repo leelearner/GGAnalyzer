@@ -2,6 +2,7 @@ package com.gganalyzer.repository;
 
 import com.gganalyzer.model.Match;
 import com.gganalyzer.model.Team;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import java.util.Optional;

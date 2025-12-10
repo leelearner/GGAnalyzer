@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import axios from 'axios'
 import { STAT_DEFINITIONS } from '../constants/definitions'
+import PlayerModal from '../components/PlayerModal'
 
 export default function Stats() {
     const [tab, setTab] = useState('players'); // players, teams, champions
@@ -62,6 +63,7 @@ export default function Stats() {
 }
 
 function PlayerStats({ stage }) {
+    const [selectedPlayer, setSelectedPlayer] = useState(null);
     const { data, isLoading } = useQuery({
         queryKey: ['stats', 'players', stage],
         queryFn: async () => (await axios.get('http://localhost:8080/api/stats/players', { params: { stage } })).data
@@ -109,7 +111,7 @@ function PlayerStats({ stage }) {
                             <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["CS%P15"]}>CS%P15</th>
                             <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["DPM"]}>DPM</th>
                             <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["DMG%"]}>DMG%</th>
-                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["D%P15"]}>D%P15</th>
+                            {/* <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["D%P15"]}>D%P15</th> */}
                             <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["EGPM"]}>EGPM</th>
                             <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["GOLD%"]}>GOLD%</th>
                             <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["WPM"]}>WPM</th>
@@ -119,7 +121,11 @@ function PlayerStats({ stage }) {
                     </thead>
                     <tbody className="divide-y divide-gray-700">
                         {data?.map((p, i) => (
-                            <tr key={i} className="hover:bg-gray-700">
+                            <tr
+                                key={i}
+                                className="hover:bg-gray-700 cursor-pointer transition-colors"
+                                onClick={() => setSelectedPlayer(p)}
+                            >
                                 <td className="p-3 flex items-center space-x-2">
                                     {/* Team Logo */}
                                     {p.teamLogoUrl ? (
@@ -166,7 +172,7 @@ function PlayerStats({ stage }) {
                                 <td className="p-3">{p.csSharePost15.toFixed(1)}%</td>
                                 <td className="p-3">{p.dpm.toFixed(0)}</td>
                                 <td className="p-3">{p.damageShare.toFixed(0)}%</td>
-                                <td className="p-3">{p.damageSharePost15.toFixed(0)}%</td>
+                                {/* <td className="p-3">{p.damageSharePost15.toFixed(0)}%</td> */}
                                 <td className="p-3">{p.earnedGoldPerMinute.toFixed(0)}</td>
                                 <td className="p-3">{p.goldShare.toFixed(1)}%</td>
                                 <td className="p-3">{p.wardsPerMinute.toFixed(2)}</td>
@@ -177,6 +183,13 @@ function PlayerStats({ stage }) {
                     </tbody>
                 </table>
             </div>
+            {selectedPlayer && (
+                <PlayerModal
+                    player={selectedPlayer}
+                    allPlayers={data}
+                    onClose={() => setSelectedPlayer(null)}
+                />
+            )}
         </div>
     )
 }
@@ -197,30 +210,70 @@ function TeamStats({ stage }) {
 
     return (
         <div className="bg-gg-card rounded-lg overflow-hidden">
-            <table className="w-full text-left text-sm">
-                <thead className="bg-gray-800 text-gray-400 uppercase">
-                    <tr>
-                        <th className="p-3" title={STAT_DEFINITIONS["Team"]}>Team</th>
-                        <th className="p-3" title={STAT_DEFINITIONS["GP"]}>Games</th>
-                        <th className="p-3" title={STAT_DEFINITIONS["W%"]}>Win Rate</th>
-                        <th className="p-3" title={STAT_DEFINITIONS["KDA"]}>KDA</th>
-                        <th className="p-3" title={STAT_DEFINITIONS["AGT"]}>Avg Duration</th>
-                        <th className="p-3" title={STAT_DEFINITIONS["GPM"]}>Gold/M</th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-700">
-                    {data?.map((t, i) => (
-                        <tr key={i} className="hover:bg-gray-700">
-                            <td className="p-3 font-bold">{t.teamName}</td>
-                            <td className="p-3">{t.gamesPlayed}</td>
-                            <td className="p-3 text-gg-blue">{t.winRate}%</td>
-                            <td className="p-3">{t.kda}</td>
-                            <td className="p-3">{Math.floor(t.averageGameDuration / 60)}m {t.averageGameDuration % 60}s</td>
-                            <td className="p-3">{t.goldPerMin}</td>
+            <div className="overflow-auto max-h-[600px]">
+                <table className="w-full text-left text-sm whitespace-nowrap">
+                    <thead className="bg-gray-800 text-gray-400 uppercase sticky top-0 z-10">
+                        <tr>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["Team"]}>Team</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["GP"]}>GP</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["W%"]}>W%</th>
+                            <th className="p-3 bg-gray-800" title="Kill to Death Ratio">K:D</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["AGT"]}>AGT</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["CKPM"]}>CKPM</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["GPR"]}>GPR</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["GSPD"]}>GSPD</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["GD15"]}>GD15</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["FB%"]}>FB%</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["FT%"]}>FT%</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["F3T%"]}>F3T%</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["PPG"]}>PPG</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["HLD%"]}>HLD%</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["GRB%"]}>GRB%</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["FD%"]}>FD%</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["DRG%"]}>DRG%</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["ELD%"]}>ELD%</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["FBN%"]}>FBN%</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["BN%"]}>BN%</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["LNE%"]}>LNE%</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["JNG%"]}>JNG%</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["WPM"]}>WPM</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["CWPM"]}>CWPM</th>
+                            <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["WCPM"]}>WCPM</th>
                         </tr>
-                    ))}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody className="divide-y divide-gray-700">
+                        {data?.map((t, i) => (
+                            <tr key={i} className="hover:bg-gray-700">
+                                <td className="p-3 font-bold">{t.team.acronym}</td>
+                                <td className="p-3">{t.gamesPlayed}</td>
+                                <td className="p-3 text-gg-blue">{t.gamesPlayed > 0 ? ((t.wins / t.gamesPlayed) * 100).toFixed(0) : 0}%</td>
+                                <td className="p-3">{t.kd?.toFixed(2)}</td>
+                                <td className="p-3">{t.averageGameTime?.toFixed(1)}</td>
+                                <td className="p-3">{t.combinedKillsPerMinute?.toFixed(2)}</td>
+                                <td className="p-3">{t.goldPercentRating?.toFixed(1)}</td>
+                                <td className="p-3">{t.goldSpentPerDiff?.toFixed(1)}%</td>
+                                <td className="p-3">{t.gd15?.toFixed(0)}</td>
+                                <td className="p-3">{t.firstBloodPercent?.toFixed(0)}%</td>
+                                <td className="p-3">{t.firstTowerPercent?.toFixed(0)}%</td>
+                                <td className="p-3">{t.firstThreeTowersPercent?.toFixed(0)}%</td>
+                                <td className="p-3">{t.ppg?.toFixed(1)}</td>
+                                <td className="p-3">{t.heraldPercent?.toFixed(0)}%</td>
+                                <td className="p-3">{t.grubPercent?.toFixed(0)}%</td>
+                                <td className="p-3">{t.firstDragonPercent?.toFixed(0)}%</td>
+                                <td className="p-3">{t.dragonPercent?.toFixed(0)}%</td>
+                                <td className="p-3">{t.elderDragonPercent?.toFixed(0)}%</td>
+                                <td className="p-3">{t.firstBaronPercent?.toFixed(0)}%</td>
+                                <td className="p-3">{t.baronPercent?.toFixed(0)}%</td>
+                                <td className="p-3">{t.lanePercent?.toFixed(1)}%</td>
+                                <td className="p-3">{t.junglePercent?.toFixed(1)}%</td>
+                                <td className="p-3">{t.wardsPerMinute?.toFixed(2)}</td>
+                                <td className="p-3">{t.controlWardsPerMinute?.toFixed(2)}</td>
+                                <td className="p-3">{t.wardsClearedPerMinute?.toFixed(2)}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
         </div>
     )
 }
