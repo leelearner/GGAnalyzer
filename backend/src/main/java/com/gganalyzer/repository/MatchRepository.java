@@ -11,11 +11,11 @@ import java.util.List;
 
 @Repository
 public interface MatchRepository extends JpaRepository<Match, Long> {
-    List<Match> findByLeague_Name(String leagueName);
+    public List<Match> findByLeague_Name(String leagueName);
 
-    Optional<Match> findByMatchId(String matchId);
+    public Optional<Match> findByMatchId(String matchId);
 
-    Optional<Match> findByDateAndTeamAAndTeamB(String date, Team teamA, Team teamB);
+    public Optional<Match> findByDateAndTeamAAndTeamB(String date, Team teamA, Team teamB);
 
-    List<Match> findByStage(com.gganalyzer.model.Stage stage);
+    public List<Match> findByStage(com.gganalyzer.model.Stage stage);
 }

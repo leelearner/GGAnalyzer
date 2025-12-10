@@ -16,7 +16,7 @@ public class StandingsController {
     private StatsService statsService;
 
     @GetMapping
-    public List<StandingsDTO> getStandings(@RequestParam(required = false) String league) {
-        return statsService.getStandings(league);
+    public List<StandingsDTO> getStandings(@RequestParam(required = false) String stage) {
+        return statsService.getStandings(stage);
     }
 }

@@ -1,9 +1,12 @@
 package com.gganalyzer.api;
 
 import com.gganalyzer.model.Match;
+import com.gganalyzer.dto.MatchDetailDTO;
 import com.gganalyzer.service.MatchService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -21,5 +24,14 @@ public class MatchController {
     @GetMapping
     public List<Match> getAllMatches() {
         return matchService.getAllMatches();
+    }
+
+    @GetMapping("/{matchId}")
+    public ResponseEntity<MatchDetailDTO> getMatchDetail(@PathVariable String matchId) {
+        MatchDetailDTO matchDetail = matchService.getMatchDetail(matchId);
+        if (matchDetail == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(matchDetail);
     }
 }

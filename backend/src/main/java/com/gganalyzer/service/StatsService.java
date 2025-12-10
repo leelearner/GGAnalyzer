@@ -82,76 +82,73 @@ public class StatsService {
     }
 
     @Transactional
-    public void calculatePlayerStats() {
-        List<Stage> stages = stageRepository.findAll();
-        for (Stage stage : stages) {
-            List<Match> matches = matchRepository.findByStage(stage);
-            if (matches.isEmpty())
+    public void calculatePlayerStats(Stage stage) {
+        List<Match> matches = matchRepository.findByStage(stage);
+        if (matches.isEmpty())
+            return;
+
+        // Collect all games in this stage
+        List<Game> games = new ArrayList<>();
+        for (Match match : matches) {
+            games.addAll(match.getGames());
+        }
+        if (games.isEmpty())
+            return;
+
+        // Collect all player game stats in these games
+        List<PlayerGameStats> allStats = new ArrayList<>();
+        for (Game game : games) {
+            allStats.addAll(playerGameStatsRepository.findByGame(game));
+        }
+
+        // Pre-calculate game totals for shares
+        Map<Long, Map<String, GameSideTotals>> gameSideTotals = new HashMap<>();
+        Map<Long, GameTotals> gameTotals = new HashMap<>();
+
+        for (PlayerGameStats pgs : allStats) {
+            Long gameId = pgs.getGame().getId();
+            String side = pgs.getSide(); // "Blue" or "Red"
+
+            gameSideTotals.putIfAbsent(gameId, new HashMap<>());
+            gameSideTotals.get(gameId).putIfAbsent(side, new GameSideTotals());
+            gameTotals.putIfAbsent(gameId, new GameTotals());
+
+            GameSideTotals sideTotals = gameSideTotals.get(gameId).get(side);
+            GameTotals gTotals = gameTotals.get(gameId);
+
+            // CS Post 15
+            if (pgs.getTotalCs() != null && pgs.getCsAt15() != null) {
+                sideTotals.totalCsPost15 += (pgs.getTotalCs() - pgs.getCsAt15());
+            }
+
+            // Jungle CS
+            if (pgs.getMonsterKills() != null) {
+                gTotals.totalJungleCs += pgs.getMonsterKills();
+            }
+
+            // Lane CS
+            if (pgs.getMinionKills() != null) {
+                gTotals.totalLaneCs += pgs.getMinionKills();
+            }
+        }
+
+        // Group by Player
+        Map<Player, List<PlayerGameStats>> playerStatsMap = allStats.stream()
+                .collect(Collectors.groupingBy(PlayerGameStats::getPlayer));
+
+        for (Map.Entry<Player, List<PlayerGameStats>> entry : playerStatsMap.entrySet()) {
+            Player player = entry.getKey();
+            List<PlayerGameStats> pgsList = entry.getValue();
+
+            if (pgsList.isEmpty())
                 continue;
 
-            // Collect all games in this stage
-            List<Game> games = new ArrayList<>();
-            for (Match match : matches) {
-                games.addAll(match.getGames());
-            }
-            if (games.isEmpty())
-                continue;
+            synchronized (lock) {
+                PlayerStats stats = playerStatsRepository.findByPlayerAndStage(player, stage)
+                        .orElse(PlayerStats.builder().player(player).stage(stage).build());
 
-            // Collect all player game stats in these games
-            List<PlayerGameStats> allStats = new ArrayList<>();
-            for (Game game : games) {
-                allStats.addAll(playerGameStatsRepository.findByGame(game));
-            }
-
-            // Pre-calculate game totals for shares
-            Map<Long, Map<String, GameSideTotals>> gameSideTotals = new HashMap<>();
-            Map<Long, GameTotals> gameTotals = new HashMap<>();
-
-            for (PlayerGameStats pgs : allStats) {
-                Long gameId = pgs.getGame().getId();
-                String side = pgs.getSide(); // "Blue" or "Red"
-
-                gameSideTotals.putIfAbsent(gameId, new HashMap<>());
-                gameSideTotals.get(gameId).putIfAbsent(side, new GameSideTotals());
-                gameTotals.putIfAbsent(gameId, new GameTotals());
-
-                GameSideTotals sideTotals = gameSideTotals.get(gameId).get(side);
-                GameTotals gTotals = gameTotals.get(gameId);
-
-                // CS Post 15
-                if (pgs.getTotalCs() != null && pgs.getCsAt15() != null) {
-                    sideTotals.totalCsPost15 += (pgs.getTotalCs() - pgs.getCsAt15());
-                }
-
-                // Jungle CS
-                if (pgs.getMonsterKills() != null) {
-                    gTotals.totalJungleCs += pgs.getMonsterKills();
-                }
-
-                // Lane CS
-                if (pgs.getMinionKills() != null) {
-                    gTotals.totalLaneCs += pgs.getMinionKills();
-                }
-            }
-
-            // Group by Player
-            Map<Player, List<PlayerGameStats>> playerStatsMap = allStats.stream()
-                    .collect(Collectors.groupingBy(PlayerGameStats::getPlayer));
-
-            for (Map.Entry<Player, List<PlayerGameStats>> entry : playerStatsMap.entrySet()) {
-                Player player = entry.getKey();
-                List<PlayerGameStats> pgsList = entry.getValue();
-
-                if (pgsList.isEmpty())
-                    continue;
-
-                synchronized (lock) {
-                    PlayerStats stats = playerStatsRepository.findByPlayerAndStage(player, stage)
-                            .orElse(PlayerStats.builder().player(player).stage(stage).build());
-
-                    updatePlayerStats(stats, pgsList, games, gameSideTotals, gameTotals);
-                    playerStatsRepository.save(stats);
-                }
+                updatePlayerStats(stats, pgsList, games, gameSideTotals, gameTotals);
+                playerStatsRepository.save(stats);
             }
         }
     }
@@ -314,56 +311,53 @@ public class StatsService {
     }
 
     @Transactional
-    public void calculateTeamStats() {
-        List<Stage> stages = stageRepository.findAll();
-        for (Stage stage : stages) {
-            List<Match> matches = matchRepository.findByStage(stage);
-            if (matches.isEmpty())
-                continue;
+    public void calculateTeamStats(Stage stage) {
+        List<Match> matches = matchRepository.findByStage(stage);
+        if (matches.isEmpty())
+            return;
 
-            League league = matches.get(0).getLeague();
+        League league = matches.get(0).getLeague();
 
-            List<Game> games = matches.stream()
-                    .flatMap(m -> m.getGames().stream())
-                    .collect(Collectors.toList());
-            if (games.isEmpty())
-                continue;
+        List<Game> games = matches.stream()
+                .flatMap(m -> m.getGames().stream())
+                .collect(Collectors.toList());
+        if (games.isEmpty())
+            return;
 
-            List<TeamGameStats> allTeamGameStats = new ArrayList<>();
-            List<PlayerGameStats> allPlayerGameStats = new ArrayList<>();
+        List<TeamGameStats> allTeamGameStats = new ArrayList<>();
+        List<PlayerGameStats> allPlayerGameStats = new ArrayList<>();
 
-            for (Game game : games) {
-                allTeamGameStats.addAll(teamGameStatsRepository.findByGame(game));
-                allPlayerGameStats.addAll(playerGameStatsRepository.findByGame(game));
-            }
+        for (Game game : games) {
+            allTeamGameStats.addAll(teamGameStatsRepository.findByGame(game));
+            allPlayerGameStats.addAll(playerGameStatsRepository.findByGame(game));
+        }
 
-            // Map GameId -> List<TeamGameStats> (for opponent lookup)
-            Map<Long, List<TeamGameStats>> gameTeamStatsMap = allTeamGameStats.stream()
-                    .collect(Collectors.groupingBy(tgs -> tgs.getGame().getId()));
+        // Map GameId -> List<TeamGameStats> (for opponent lookup)
+        Map<Long, List<TeamGameStats>> gameTeamStatsMap = allTeamGameStats.stream()
+                .collect(Collectors.groupingBy(tgs -> tgs.getGame().getId()));
 
-            // Map GameId -> Side -> List<PlayerGameStats>
-            Map<Long, Map<String, List<PlayerGameStats>>> gameSidePlayerStats = new HashMap<>();
-            for (PlayerGameStats pgs : allPlayerGameStats) {
-                gameSidePlayerStats
-                        .computeIfAbsent(pgs.getGame().getId(), k -> new HashMap<>())
-                        .computeIfAbsent(pgs.getSide(), k -> new ArrayList<>())
-                        .add(pgs);
-            }
+        // Map GameId -> Side -> List<PlayerGameStats>
+        Map<Long, Map<String, List<PlayerGameStats>>> gameSidePlayerStats = new HashMap<>();
+        for (PlayerGameStats pgs : allPlayerGameStats) {
+            gameSidePlayerStats
+                    .computeIfAbsent(pgs.getGame().getId(), k -> new HashMap<>())
+                    .computeIfAbsent(pgs.getSide(), k -> new ArrayList<>())
+                    .add(pgs);
+        }
 
-            // Group by Team
-            Map<Team, List<TeamGameStats>> teamStatsMap = allTeamGameStats.stream()
-                    .collect(Collectors.groupingBy(TeamGameStats::getTeam));
+        // Group by Team
+        Map<Team, List<TeamGameStats>> teamStatsMap = allTeamGameStats.stream()
+                .collect(Collectors.groupingBy(TeamGameStats::getTeam));
 
-            for (Map.Entry<Team, List<TeamGameStats>> entry : teamStatsMap.entrySet()) {
-                Team team = entry.getKey();
-                List<TeamGameStats> tgsList = entry.getValue();
+        for (Map.Entry<Team, List<TeamGameStats>> entry : teamStatsMap.entrySet()) {
+            Team team = entry.getKey();
+            List<TeamGameStats> tgsList = entry.getValue();
 
-                synchronized (teamStatsLock) {
-                    TeamStats stats = teamStatsRepository.findByTeamAndStage(team, stage)
-                            .orElse(TeamStats.builder().team(team).stage(stage).league(league).build());
-                    updateTeamStats(stats, tgsList, gameTeamStatsMap, gameSidePlayerStats);
-                    teamStatsRepository.save(stats);
-                }
+            synchronized (teamStatsLock) {
+                TeamStats stats = teamStatsRepository.findByTeamAndStage(team, stage)
+                        .orElse(TeamStats.builder().team(team).stage(stage).league(league).build());
+                updateTeamStats(stats, tgsList, gameTeamStatsMap, gameSidePlayerStats);
+                teamStatsRepository.save(stats);
             }
         }
     }
@@ -526,8 +520,15 @@ public class StatsService {
         stats.setPpg(0.0); // Placeholder
     }
 
-    public List<StandingsDTO> getStandings(String leagueName) {
-        List<Match> matches = matchRepository.findByLeague_Name(leagueName);
+    public List<StandingsDTO> getStandings(String stageName) {
+        if (stageName == null) {
+            return new ArrayList<>();
+        }
+        Stage stage = stageRepository.findByName(stageName).orElse(null);
+        if (stage == null) {
+            return new ArrayList<>();
+        }
+        List<Match> matches = matchRepository.findByStage(stage);
         Map<Long, TeamStanding> standingsMap = new HashMap<>();
 
         for (Match match : matches) {
@@ -552,7 +553,7 @@ public class StatsService {
             teamB.pointDiff += (match.getTeamBScore() - match.getTeamAScore());
         }
 
-        return standingsMap.values().stream()
+        List<StandingsDTO> standings = standingsMap.values().stream()
                 .sorted((a, b) -> {
                     if (b.wins != a.wins)
                         return b.wins - a.wins;
@@ -560,7 +561,8 @@ public class StatsService {
                 })
                 .map(s -> {
                     Integer totalGames = s.wins + s.losses;
-                    String winRate = totalGames == 0 ? "0" : String.valueOf((int) ((double) s.wins / totalGames * 100));
+                    String winRate = totalGames == 0 ? "0%"
+                            : String.format("%.1f%%", (double) s.wins / totalGames * 100);
                     return StandingsDTO.builder()
                             .rank(0) // Will set rank after collecting
                             .teamName(s.team.getName())
@@ -573,6 +575,11 @@ public class StatsService {
                             .build();
                 })
                 .collect(Collectors.toList());
+
+        for (int i = 0; i < standings.size(); i++) {
+            standings.get(i).setRank(i + 1);
+        }
+        return standings;
     }
 
     private static class TeamStanding {

@@ -44,7 +44,6 @@ public class CsvImportService {
     @Autowired
     private GameService gameService;
 
-    private final ExecutorService executor = Executors.newFixedThreadPool(10);
     private final Object teamLock = new Object();
     private final Object matchLock = new Object();
     private final Object stageLock = new Object();
@@ -147,19 +146,14 @@ public class CsvImportService {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        List<Future<?>> futures = new ArrayList<>();
+        ExecutorService executor = Executors.newFixedThreadPool(10);
         for (String path : paths) {
-            futures.add(executor.submit(() -> processMatchData(path)));
+            executor.execute(() -> processMatchData(path));
         }
-
         // Wait for all tasks to complete
-        for (Future<?> future : futures) {
-            try {
-                future.get();
-            } catch (InterruptedException | ExecutionException e) {
-                e.printStackTrace();
-            }
-        }
+        executor.shutdown();
+        while (!executor.isTerminated())
+            ;
 
         return paths;
     }

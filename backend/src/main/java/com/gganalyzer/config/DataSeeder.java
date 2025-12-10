@@ -1,9 +1,11 @@
 package com.gganalyzer.config;
 
 import com.gganalyzer.model.League;
+import com.gganalyzer.model.Stage;
 import com.gganalyzer.model.Team;
 import com.gganalyzer.repository.LeagueRepository;
 import com.gganalyzer.repository.MatchRepository;
+import com.gganalyzer.repository.StageRepository;
 import com.gganalyzer.repository.TeamRepository;
 import com.gganalyzer.service.CsvImportService;
 import com.gganalyzer.service.StatsService;
@@ -12,6 +14,9 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
 import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Component
 public class DataSeeder implements CommandLineRunner {
@@ -24,6 +29,8 @@ public class DataSeeder implements CommandLineRunner {
     private CsvImportService csvImportService;
     @Autowired
     private StatsService statsService;
+    @Autowired
+    private StageRepository stageRepository;
 
     @Override
     public void run(String... args) throws Exception {
@@ -33,12 +40,18 @@ public class DataSeeder implements CommandLineRunner {
         csvImportService.splitMatchesData("data/2025_LoL_esports_match_data_from_OraclesElixir.csv");
         // csvImportService.processMatchData("data/matches_LCK_2025_Rounds 1-2.csv");
         System.out.println("Import completed. Calculating player stats...");
-
-        statsService.calculatePlayerStats();
-        System.out.println("Player stats calculation completed.");
-
         System.out.println("Calculating team stats...");
-        statsService.calculateTeamStats();
+
+        ExecutorService executor = Executors.newFixedThreadPool(10);
+        List<Stage> stages = stageRepository.findAll();
+        for (Stage stage : stages) {
+            executor.execute(() -> statsService.calculatePlayerStats(stage));
+            executor.execute(() -> statsService.calculateTeamStats(stage));
+        }
+        executor.shutdown();
+        while (!executor.isTerminated())
+            ;
+        System.out.println("Player stats calculation completed.");
         System.out.println("Team stats calculation completed.");
     }
 

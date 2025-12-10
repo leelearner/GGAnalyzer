@@ -2,9 +2,11 @@ import { useState, useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import axios from 'axios'
 import { Calendar } from 'lucide-react'
+import MatchDetailModal from '../components/MatchDetailModal'
 
 export default function Schedule() {
     const [selectedStage, setSelectedStage] = useState(null);
+    const [selectedMatchId, setSelectedMatchId] = useState(null);
     const dateRefs = useRef({});
 
     const { data: matches, isLoading, error } = useQuery({
@@ -122,7 +124,11 @@ export default function Schedule() {
                                 </h3>
                                 <div className="grid gap-4">
                                     {matchesByDate[dateKey].map(match => (
-                                        <div key={match.id} className="bg-gg-card p-4 rounded-lg flex justify-between items-center hover:bg-gray-700 transition">
+                                        <div
+                                            key={match.id}
+                                            className="bg-gg-card p-4 rounded-lg flex justify-between items-center hover:bg-gray-700 transition cursor-pointer"
+                                            onClick={() => setSelectedMatchId(match.matchId)}
+                                        >
                                             <div className="flex items-center space-x-4 w-1/3">
                                                 <span className="text-gray-400 text-sm">{new Date(match.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                                 <span className="font-bold">{match.league?.name}</span>
@@ -161,6 +167,9 @@ export default function Schedule() {
                     </div>
                 </div>
             </div>
+            {selectedMatchId && (
+                <MatchDetailModal matchId={selectedMatchId} onClose={() => setSelectedMatchId(null)} />
+            )}
         </div>
     )
 }
