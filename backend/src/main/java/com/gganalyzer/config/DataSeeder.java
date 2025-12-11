@@ -1,10 +1,13 @@
 package com.gganalyzer.config;
 
+import com.gganalyzer.model.Champion;
 import com.gganalyzer.model.League;
+import com.gganalyzer.model.Player;
 import com.gganalyzer.model.Stage;
 import com.gganalyzer.model.Team;
+import com.gganalyzer.repository.ChampionRepository;
 import com.gganalyzer.repository.LeagueRepository;
-import com.gganalyzer.repository.MatchRepository;
+import com.gganalyzer.repository.PlayerRepository;
 import com.gganalyzer.repository.StageRepository;
 import com.gganalyzer.repository.TeamRepository;
 import com.gganalyzer.service.CsvImportService;
@@ -13,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
+import java.io.File;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -31,6 +35,10 @@ public class DataSeeder implements CommandLineRunner {
     private StatsService statsService;
     @Autowired
     private StageRepository stageRepository;
+    @Autowired
+    private PlayerRepository playerRepository;
+    @Autowired
+    private ChampionRepository championRepository;
 
     @Override
     public void run(String... args) throws Exception {
@@ -53,6 +61,49 @@ public class DataSeeder implements CommandLineRunner {
             ;
         System.out.println("Player stats calculation completed.");
         System.out.println("Team stats calculation completed.");
+
+        System.out.println("Assigning images to players, teams, and champions...");
+        File imagesDir = new File("src/main/resources/static/images");
+        for (File dirs : imagesDir.listFiles()) {
+            if (dirs.isDirectory() && dirs.getName().contains("players")) {
+                for (File file : dirs.listFiles()) {
+                    String playerName = file.getName().split("\\.")[0];
+                    Player player = playerRepository.findByHandle(playerName).orElse(null);
+                    if (player == null) {
+                        continue;
+                    }
+                    if (player.getPhotoUrl() == null) {
+                        player.setPhotoUrl("http://localhost:8080/images/players/" + file.getName());
+                        playerRepository.save(player);
+                    }
+                }
+            } else if (dirs.isDirectory() && dirs.getName().contains("teams")) {
+                for (File file : dirs.listFiles()) {
+                    String teamName = file.getName().split("\\.")[0];
+                    Team team = teamRepository.findByName(teamName).orElse(null);
+                    if (team == null) {
+                        continue;
+                    }
+                    if (team.getLogoUrl() == null) {
+                        team.setLogoUrl("http://localhost:8080/images/teams/" + file.getName());
+                        teamRepository.save(team);
+                    }
+                }
+            } else if (dirs.isDirectory() && dirs.getName().contains("champions")) {
+                for (File file : dirs.listFiles()) {
+                    String championName = file.getName().split("\\.")[0];
+                    Champion champion = championRepository.findByName(championName).orElse(null);
+                    if (champion == null) {
+                        continue;
+                    }
+                    if (champion.getImageUrl() == null) {
+                        champion.setImageUrl("http://localhost:8080/images/champions/" + file.getName());
+                        championRepository.save(champion);
+                    }
+                }
+            }
+            System.out.println("Images assigned successfully.");
+        }
     }
 
     private void seedData() {

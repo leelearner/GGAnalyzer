@@ -15,8 +15,6 @@ import lombok.extern.slf4j.Slf4j;
 import com.gganalyzer.service.CommentService;
 import com.gganalyzer.service.MatchService;
 
-import jakarta.annotation.PostConstruct;
-
 import com.gganalyzer.model.Match;
 import com.gganalyzer.model.MatchComment;
 import com.gganalyzer.dto.MatchCommentDTO;
