@@ -51,8 +51,7 @@ The project is configured to use a local PostgreSQL database by default.
 ### 2. Google API Configuration
 To enable automatic data updates from Google Drive, you need to configure a Service Account following the instructions in backend/GOOGLE_DRIVE_SETUP.md
 
-I have included the data file in backend/data/resources. As a result, you can still run the project without configuring the Google API service.
-
+Otherwise, you can manually download the [data file](https://drive.google.com/drive/u/1/folders/1gLSw0RLjBbtaNy0dgnGQDAZOHIgCe-HH) to backend/data/resources/ if you don't want to configure the Google API Service.
 ### 3. Backend Setup
 Navigate to the `backend` directory and run the application:
 

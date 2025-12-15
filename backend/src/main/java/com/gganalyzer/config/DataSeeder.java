@@ -73,6 +73,9 @@ public class DataSeeder implements CommandLineRunner {
             return;
         }
         for (File dataFile : dataDir.listFiles()) {
+            if (!dataFile.getName().endsWith(".csv")) {
+                continue;
+            }
             csvImportService.splitMatchesData(dataFile.getAbsolutePath());
         }
         // csvImportService.processMatchData("data/matches_LCK_2025_Rounds 1-2.csv");
