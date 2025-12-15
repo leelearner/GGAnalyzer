@@ -123,7 +123,7 @@ public class DataSeeder implements CommandLineRunner {
                 } else if (dirs.isDirectory() && dirs.getName().contains("teams")) {
                     for (File file : dirs.listFiles()) {
                         String teamName = file.getName().split("\\.")[0];
-                        Team team = teamRepository.findByName(teamName).orElse(null);
+                        Team team = teamRepository.findByAcronym(teamName).orElse(null);
                         if (team == null) {
                             continue;
                         }
