@@ -41,14 +41,17 @@ public class DataSeeder implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        // scheduledDownloadAndProcess();
         processData();
     }
 
-    @Scheduled(fixedRate = 24 * 60 * 60 * 1000, initialDelay = 60 * 1000)
+    @Scheduled(fixedRate = 24 * 60 * 60 * 1000, initialDelay = 24 * 60 * 60 * 1000)
     public void scheduledDownloadAndProcess() {
+        System.out.println("Starting scheduled task: Download and process data...");
+        processData();
+    }
+
+    public void processData() {
         try {
-            System.out.println("Starting scheduled task: Download and process data...");
             String folderId = "1gLSw0RLjBbtaNy0dgnGQDAZOHIgCe-HH";
             String fileName = "2025_LoL_esports_match_data_from_OraclesElixir.csv";
             String destinationPath = "data/resources/" + fileName;
@@ -58,15 +61,11 @@ public class DataSeeder implements CommandLineRunner {
             } catch (Exception e) {
                 System.err.println("Failed to download file from Google Drive: " + e.getMessage());
             }
-            processData();
             System.out.println("Data update completed successfully.");
         } catch (Exception e) {
             System.err.println("Error in updating data: " + e.getMessage());
             e.printStackTrace();
         }
-    }
-
-    public void processData() {
         File dataDir = new File("data/resources");
         if (!dataDir.exists() || !dataDir.isDirectory()) {
             System.err.println("Data directory does not exist: " + dataDir.getAbsolutePath());
