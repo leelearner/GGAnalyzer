@@ -564,6 +564,7 @@ public class StatsService {
                             .rank(0) // Will set rank after collecting
                             .teamName(s.team.getName())
                             .teamAcronym(s.team.getAcronym())
+                            .team(s.team)
                             .wins(s.wins)
                             .losses(s.losses)
                             .pointDiff(s.pointDiff)
