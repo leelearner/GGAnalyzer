@@ -116,17 +116,14 @@ public class StatsService {
             GameSideTotals sideTotals = gameSideTotals.get(gameId).get(side);
             GameTotals gTotals = gameTotals.get(gameId);
 
-            // CS Post 15
             if (pgs.getTotalCs() != null && pgs.getCsAt15() != null) {
                 sideTotals.totalCsPost15 += (pgs.getTotalCs() - pgs.getCsAt15());
             }
 
-            // Jungle CS
             if (pgs.getMonsterKills() != null) {
                 gTotals.totalJungleCs += pgs.getMonsterKills();
             }
 
-            // Lane CS
             if (pgs.getMinionKills() != null) {
                 gTotals.totalLaneCs += pgs.getMinionKills();
             }
@@ -567,6 +564,7 @@ public class StatsService {
                             .rank(0) // Will set rank after collecting
                             .teamName(s.team.getName())
                             .teamAcronym(s.team.getAcronym())
+                            .team(s.team)
                             .wins(s.wins)
                             .losses(s.losses)
                             .pointDiff(s.pointDiff)

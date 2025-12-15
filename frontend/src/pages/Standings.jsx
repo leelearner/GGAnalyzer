@@ -86,7 +86,11 @@ export default function Standings() {
                                     <tr key={team.teamAcronym} className="hover:bg-gray-700 transition">
                                         <td className="p-4 font-bold text-lg">{team.rank}</td>
                                         <td className="p-4 flex items-center space-x-3">
-                                            <div className="w-8 h-8 bg-gray-600 rounded-full"></div>
+                                            {team.team.logoUrl ? (
+                                                <img src={team.team.logoUrl} alt={team.teamAcronym} className="w-8 h-8 rounded-full" />
+                                            ) : (
+                                                <div className="w-8 h-8 bg-gray-600 rounded-full"></div>
+                                            )}
                                             <span className="font-bold">{team.teamName}</span>
                                         </td>
                                         <td className="p-4">{team.wins} - {team.losses}</td>

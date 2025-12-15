@@ -87,9 +87,9 @@ function PlayerStats({ stage }) {
 
     return (
         <div className="bg-gg-card rounded-lg overflow-hidden flex flex-col">
-            <div className="overflow-auto max-h-[600px]">
+            <div className="overflow-auto max-h-[700px]">
                 <table className="w-full text-left text-sm whitespace-nowrap">
-                    <thead className="bg-gray-800 text-gray-400 uppercase sticky top-0 z-10">
+                    <thead className="bg-gray-400 text-gray-400 uppercase sticky top-0 z-10">
                         <tr>
                             <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["Team"]}>Team</th>
                             <th className="p-3 bg-gray-800" title={STAT_DEFINITIONS["Player"]}>Player</th>
@@ -145,9 +145,7 @@ function PlayerStats({ stage }) {
                                         {p.photoUrl ? (
                                             <img src={p.photoUrl} alt={p.playerName} className="w-8 h-8 rounded-full object-cover" />
                                         ) : (
-                                            <div className="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center text-xs">
-                                                {p.playerName.charAt(0)}
-                                            </div>
+                                            <img src="http://localhost:8080/images/players/player-default.svg" alt={p.playerName} className="w-8 h-8 rounded-full object-cover" />
                                         )}
 
                                         {/* Player Handle */}
@@ -173,7 +171,7 @@ function PlayerStats({ stage }) {
                                 <td className="p-3">{p.dpm.toFixed(0)}</td>
                                 <td className="p-3">{p.damageShare.toFixed(0)}%</td>
                                 {/* <td className="p-3">{p.damageSharePost15.toFixed(0)}%</td> */}
-                                <td className="p-3">{p.earnedGoldPerMinute.toFixed(0)}</td>
+                                <td td className="p-3" > {p.earnedGoldPerMinute.toFixed(0)}</td>
                                 <td className="p-3">{p.goldShare.toFixed(1)}%</td>
                                 <td className="p-3">{p.wardsPerMinute.toFixed(2)}</td>
                                 <td className="p-3">{p.controlWardsPerMinute.toFixed(2)}</td>
@@ -182,15 +180,16 @@ function PlayerStats({ stage }) {
                         ))}
                     </tbody>
                 </table>
-            </div>
+            </div >
             {selectedPlayer && (
                 <PlayerModal
                     player={selectedPlayer}
                     allPlayers={data}
                     onClose={() => setSelectedPlayer(null)}
                 />
-            )}
-        </div>
+            )
+            }
+        </div >
     )
 }
 
